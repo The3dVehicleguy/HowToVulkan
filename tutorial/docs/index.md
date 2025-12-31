@@ -11,7 +11,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 ## About
 
-[This repository](https://github.com/SaschaWillems/HowToVulkan) and the accompanying tutorial demonstrate a way to write a [Vulkan](https://vulkan.org/) graphics application in 2026. The goal is to use as many modern Vulkan features as possible for displaying something that's more than just a basic colored triangle.
+[This repository](https://github.com/SaschaWillems/HowToVulkan) and the accompanying tutorial demonstrate ways of writing a [Vulkan](https://vulkan.org/) graphics application in 2026. The goal is to leverage modern features to simplify Vulkan usage and, while doing so, create something more than just a basic colored triangle.
 
 Vulkan was released almost 10 years ago, and a lot has changed. Version 1.0 had to make many concessions to support a broad range of GPUs across desktop and mobile. Some of the initial concepts like render passes turned out to be not so optimal, and have been replaced by alternatives. The API matured and new areas like raytracing, video acceleration and machine learning were added. Just as important as the API is the ecosystem, which also changed a lot, giving us new options for writing shaders in languages different than GLSL and tools to help with Vulkan.
 
@@ -1655,8 +1655,8 @@ Ordering of commands only matters for the VMA allocator, device and instance. Th
 
 ## Closing words
 
-By now, you should have a basic understanding of how to create a Vulkan application that does rasterization by leveraging recent API versions and features. Vulkan is still pretty verbose, something inherent to an explicit low-level API. But things have become easier. Maybe not in terms of writing less code, but more in regards to using and understanding the API.
+By now, you should have a basic understanding of how to create a Vulkan application that performs rasterization and leverages recent API versions and features. Vulkan remains a relatively verbose API, which is inherent to its explicit, low-level design. But though we still need a lot of code to get something up and running in Vulkan, it's easier to understand and more flexible, making it a solid foundation for more complex applications.
 
-Looking at the broader picture Vulkan also covers more use-cases than ever. In addition to rasterization and compute, it also offers functionality for hardware accelerated raytracing, video encoding and decoding, machine learning and safety critical areas.
+Looking at the broader picture, Vulkan in 2026 supports a wider range of use cases than ever. In addition to rasterization and compute, it also offers functionality for hardware-accelerated raytracing, video encoding and decoding, machine learning, and safety-critical areas.
 
-If you're looking for further resources, check the [Vulkan Docs Site](https://docs.vulkan.org/). It combines multiple Vulkan documentation resources like the spec, a tutorial and samples into one convenient site.
+If you're looking for further resources, check the [Vulkan Docs Site](https://docs.vulkan.org/). It combines multiple Vulkan documentation resources like the spec, a tutorial and samples into a convenient single site.
