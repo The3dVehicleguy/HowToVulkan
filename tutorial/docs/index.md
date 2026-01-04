@@ -1479,7 +1479,7 @@ We now [finish](https://docs.vulkan.org/refpages/latest/refpages/source/vkCmdEnd
 vkCmdEndRendering(cb);
 ```
 
-And transition the swapchain image that we just used to a layout required for [presentation](#present-images):
+And transition the swapchain image that we just used as an attachment (to output color values) to a layout required for [presentation](#present-images):
 
 ```cpp
 VkImageMemoryBarrier2 barrierPresent{
@@ -1488,7 +1488,7 @@ VkImageMemoryBarrier2 barrierPresent{
 	.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 	.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 	.dstAccessMask = 0,
-	.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+	.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
 	.image = swapchainImages[imageIndex],
 	.subresourceRange{.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = 1, .layerCount = 1 }
