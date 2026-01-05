@@ -14,7 +14,7 @@ else()
 endif()
 
 # Volk, VMA, glm and Slang are taken from the SDK
-include_directories($ENV{VULKAN_SDK}/Include)
+include_directories($ENV{VULKAN_SDK}/include)
 # These are not part of the SDK
 include_directories(external/tinyobj)
 include_directories(external/ktx/include)
@@ -23,9 +23,7 @@ include_directories(external/ktx/other_include)
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
     GIT_TAG 3.0.1
-    GIT_SHALLOW ON
-    EXCLUDE_FROM_ALL
-    SYSTEM)
+    GIT_SHALLOW ON)
 FetchContent_MakeAvailable(SFML)
 
 OPTION(USE_D2D_WSI "Build the project using Direct to Display swapchain" OFF)
@@ -43,17 +41,21 @@ set(KTX_SOURCES
 
 add_library(ktx STATIC ${KTX_SOURCES})
 
-OPTION(USE_D2D_WSI "Build the project using Direct to Display swapchain" OFF)
-OPTION(USE_WAYLAND_WSI "Build the project using Wayland swapchain" OFF)
+find_library(Slang_LIBRARY NAMES slang HINTS "$ENV{VULKAN_SDK}/lib" REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
+if(WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WIN32_KHR")
+elseif(LINUX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_WAYLAND_KHR")
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX -D_USE_MATH_DEFINES")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+if(MSVC)
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/")
-
 
 add_executable(${NAME} main.cpp assets/shader.slang)
 add_definitions(-D_CRT_SECURE_NO_WARNINGS -DVK_NO_PROTOTYPES)
 set_target_properties(${NAME} PROPERTIES DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(${NAME} PRIVATE cxx_std_20)
-target_link_libraries(${NAME} PRIVATE SFML::Graphics ktx $ENV{VULKAN_SDK}/Lib/slang.lib)
+target_link_libraries(${NAME} PRIVATE SFML::Graphics ktx ${Slang_LIBRARY})

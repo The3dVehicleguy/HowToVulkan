@@ -27,7 +27,7 @@
 
 static inline void chk(VkResult result) {
 	if (result != VK_SUCCESS) {
-		std::cerr << "Vulkan call returned an error\n";
+		std::cerr << "Vulkan call returned an error (" << result << ")\n";
 		exit(result);
 	}
 }
