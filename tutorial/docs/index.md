@@ -308,7 +308,7 @@ And then request a Vulkan surface for that window:
 chk(window.createVulkanSurface(instance, surface));
 ```
 
-For the following chapter(s) we'll need to know the properties surface we just created, so we get them via [`vkGetPhysicalDeviceSurfaceCapabilitiesKHR`](https://docs.vulkan.org/refpages/latest/refpages/source/vkGetPhysicalDeviceSurfaceCapabilitiesKHR.html) and store them for future reference:
+For the following chapter(s) we'll need to know the properties of the surface we just created, we get them via [`vkGetPhysicalDeviceSurfaceCapabilitiesKHR`](https://docs.vulkan.org/refpages/latest/refpages/source/vkGetPhysicalDeviceSurfaceCapabilitiesKHR.html) and store them for future reference:
 
 ```cpp
 VkSurfaceCapabilitiesKHR surfaceCaps{};
@@ -747,7 +747,7 @@ VmaAllocationCreateInfo imgSrcAllocCI{
 chk(vmaCreateBuffer(allocator, &imgSrcBufferCI, &imgSrcAllocCI, &imgSrcBuffer, &imgSrcAllocation, nullptr));
 ```
 
-This buffer will be used as a temporary source for a buffer-to-image copy, so the only flag we need is [`VK_BUFFER_USAGE_TRANSFER_SRC_BIT`](https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferUsageFlagBits.html). The allocation is one again handled by VMA.
+This buffer will be used as a temporary source for a buffer-to-image copy, so the only flag we need is [`VK_BUFFER_USAGE_TRANSFER_SRC_BIT`](https://docs.vulkan.org/refpages/latest/refpages/source/VkBufferUsageFlagBits.html). The allocation is handled by VMA, once again.
 
 As the buffer was created with the mappable bit, getting the image data into that buffer is again just a matter of a simple `memcpy`:
 
@@ -830,7 +830,7 @@ It might look a bit overwhelming at first but it's easily explained. Earlier on 
 
 !!! Tip
 
-	Extensions that would make this easier are [VK_EXT_host_image_copy](https://www.khronos.org/blog/copying-images-on-the-host-in-vulkan), allowing for copying image date directly from the CPU without having to use a command buffer and [VK_KHR_unified_image_layouts](https://www.khronos.org/blog/so-long-image-layouts-simplifying-vulkan-synchronisation), simplifying image layouts. These aren't widely supported yet, but future candidates for making Vulkan easier to use.
+	Extensions that would make this easier are [VK_EXT_host_image_copy](https://www.khronos.org/blog/copying-images-on-the-host-in-vulkan), allowing for copying image data directly from the CPU without having to use a command buffer and [VK_KHR_unified_image_layouts](https://www.khronos.org/blog/so-long-image-layouts-simplifying-vulkan-synchronisation), simplifying image layouts. These aren't widely supported yet, but future candidates for making Vulkan easier to use.
 
 Later on we'll sample these textures in our shader, and sampling parameters used there are defined by a sampler object. We want smooth linear filtering, so we enable [anisotropic filter](https://docs.vulkan.org/spec/latest/chapters/textures.html#textures-texel-anisotropic-filtering) to reduce blur and aliasing. We also set the max. LOD to use all mip levels:
 
@@ -841,7 +841,7 @@ VkSamplerCreateInfo samplerCI{
 	.minFilter = VK_FILTER_LINEAR,
 	.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
 	.anisotropyEnable = VK_TRUE,
-	.maxAnisotropy = 8.0f,
+	.maxAnisotropy = 8.0f, // 8 is a widely supported value for max anisotropy
 	.maxLod = (float)ktxTexture->numLevels,
 };
 chk(vkCreateSampler(device, &samplerCI, nullptr, &textures[i].sampler));
@@ -851,7 +851,11 @@ At last we clean up and store descriptor related information for that texture to
 
 ```cpp
 ktxTexture_Destroy(ktxTexture);
-textureDescriptors.push_back({ .sampler = textures[i].sampler, .imageView = textures[i].view, .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL });
+textureDescriptors.push_back({
+    .sampler = textures[i].sampler,
+    .imageView = textures[i].view,
+    .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL
+});
 ```
 
 Now that we have uploaded the texture images, put them into the correct layout and know how to sample them, we need a way for the GPU to access them in the shader. From the GPU's point of view, images are more complicated than buffers as the GPU needs more information on what they look like an how they're accessed. This is where [descriptors](https://docs.vulkan.org/spec/latest/chapters/descriptorsets.html) are required, handles that represent (describe, hence the name) shader resources. 
@@ -905,7 +909,7 @@ VkDescriptorPoolCreateInfo descPoolCI{
 chk(vkCreateDescriptorPool(device, &descPoolCI, nullptr, &descriptorPool));
 ```
 
-The number of descriptor types we want to allocate must be specified here upfront. We need as many descriptors for combined image and samplers as we load textures. We also have to specify how many descriptor sets (**not** descriptors) we want to allocate via `maxSets`. That's one, because we with descriptor indexing, we use an array of combined image and samplers. It's also only ever accessed by the GPU, so there is no need to duplicate it per max. frames in flight. Getting pool size right is important, as allocations beyond the requested counts will fail.
+The number of descriptor types we want to allocate must be specified here upfront. We need as many descriptors for combined image and samplers as we load textures. We also have to specify how many descriptor sets (**not** descriptors) we want to allocate via `maxSets`. That's one, because with descriptor indexing, we use an array of combined image and samplers. It's also only ever accessed by the GPU, so there is no need to duplicate it per max. frames in flight. Getting pool size right is important, as allocations beyond the requested counts will fail.
 
 Next we allocate the descriptor set from that pool. While the descriptor set layout defines the interface, the descriptor contains the actual descriptor data. The reason that layouts and sets are split is because you can mix layouts and re-use them for different descriptors sets. 
 
@@ -928,7 +932,7 @@ chk(vkAllocateDescriptorSets(device, &texDescSetAlloc, &descriptorSetTex));
 
 Similar to descriptor set layout creation, we have to pass the descriptor indexing setup to the allocation via  [VkDescriptorSetVariableDescriptorCountAllocateInfo](https://docs.vulkan.org/refpages/latest/refpages/source/VkDescriptorSetVariableDescriptorCountAllocateInfo.html) in `pNext`.
 
-The descriptor set allocated by [vkAllocateDescriptorSets](https://docs.vulkan.org/refpages/latest/refpages/source/vkAllocateDescriptorSets.html) is largely uninitialized and needs to be backed with actual data before we can access in a shader:
+The descriptor set allocated by [vkAllocateDescriptorSets](https://docs.vulkan.org/refpages/latest/refpages/source/vkAllocateDescriptorSets.html) is largely uninitialized and needs to be backed with actual data before we can access it in a shader:
 
 ```cpp
 VkWriteDescriptorSet writeDescSet{
@@ -956,7 +960,7 @@ To compile Slang shaders, we first create a global Slang session, which is the c
 slang::createGlobalSession(slangGlobalSession.writeRef());
 ```
 
-Next we create a session to define our compilations scope. We want to compile to SPIR-V, so we need to set the target `format` to `SLANG_SPIRV`. Similar to using a fixed Vulkan version as a baseline we want [SPIR-V 1.4](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_spirv_1_4.html) as our baseline for shaders. This has been added to the core in Vulkan 1.2, so it's guaranteed to be support in our case. We also change the `defaultMatrixLayoutMode` to a column major layout to match the matrix layout used by Vulkan:
+Next we create a session to define our compilations scope. We want to compile to SPIR-V, so we need to set the target `format` to `SLANG_SPIRV`. Similar to using a fixed Vulkan version as a baseline we want [SPIR-V 1.4](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_spirv_1_4.html) as our baseline for shaders. This has been added to the core in Vulkan 1.2, so it's guaranteed to be supported in our case. We also change the `defaultMatrixLayoutMode` to a column major layout to match the matrix layout used by Vulkan:
 
 ```cpp
 auto slangTargets{ std::to_array<slang::TargetDesc>({ {
@@ -981,7 +985,9 @@ slangGlobalSession->createSession(slangSessionDesc, slangSession.writeRef());
 After a call to `createSession` we can use that session to get the SPIR-V representation of the Slang shader. We first load the textual shader from a file using `loadModuleFromSource` and then use `getTargetCode` to compile all entry points in our shader to SPIR-V:
 
 ```cpp
-Slang::ComPtr<slang::IModule> slangModule{ slangSession->loadModuleFromSource("triangle", "assets/shader.slang", nullptr, nullptr) };
+Slang::ComPtr<slang::IModule> slangModule{
+    slangSession->loadModuleFromSource("triangle", "assets/shader.slang", nullptr, nullptr)
+};
 Slang::ComPtr<ISlangBlob> spirv;
 slangModule->getTargetCode(0, spirv.writeRef());
 ```
@@ -1076,7 +1082,7 @@ Second is the fragment shader, marked by the `[shader("fragment")]` attribute. F
 
 ## Graphics pipeline
 
-Another area where Vulkan strongly differs from OpenGL is state management. OpenGL was a huge state machine, and that state could be changed at any time. This made it hard for drivers to optimize things. Vulkan fundamentally changes that by introducing pipeline state objects. They provide a full set of pipeline state in a "compiled" pipeline object, giving the driver a chance to optimize them. These objects also allow for pipeline object creation in e.g. a separate thread. If you need different pipeline state that means you have to create a new pipeline state object. 
+Another area where Vulkan strongly differs from OpenGL is state management. OpenGL was a huge state machine, and that state could be changed at any time. This made it hard for drivers to optimize things. Vulkan fundamentally changes that by introducing pipeline state objects. They provide a full set of pipeline state in a "compiled" pipeline object, giving the driver a chance to optimize them. These objects also allow for pipeline object creation in e.g. a separate thread. If you need different pipeline state you have to create a new pipeline state object. 
 
 !!! Note
 
@@ -1135,7 +1141,7 @@ VkPipelineVertexInputStateCreateInfo vertexInputState{
 	.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 	.vertexBindingDescriptionCount = 1,
 	.pVertexBindingDescriptions = &vertexBinding,
-	.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributes.size()),,
+	.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributes.size()),
 	.pVertexAttributeDescriptions = vertexAttributes.data(),
 };
 ```
@@ -1153,8 +1159,12 @@ An important part of any pipeline are the [shaders](https://docs.vulkan.org/refp
 
 ```cpp
 std::vector<VkPipelineShaderStageCreateInfo> shaderStages{
-	{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = shaderModule, .pName = "main"},
-	{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = shaderModule, .pName = "main" }
+	{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_VERTEX_BIT,
+      .module = shaderModule, .pName = "main"},
+	{ .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+      .module = shaderModule, .pName = "main" }
 };
 ```
 
@@ -1189,7 +1199,7 @@ VkPipelineDepthStencilStateCreateInfo depthStencilState{
 };
 ```
 
-The following state tells the pipeline that we want to use dynamic rendering instead of the cumbersome render pass objects. Unlike render passes, setting this up is fairly trivial and also removes a tight coupling between the pipeline and a render pass. For dynamic rendering we just have to specify the number and formats our the attachments we plan to use (later on):
+The following state tells the pipeline that we want to use dynamic rendering instead of the cumbersome render pass objects. Unlike render passes, setting this up is fairly trivial and also removes a tight coupling between the pipeline and a render pass. For dynamic rendering we just have to specify the number and formats of the attachments we plan to use (later on):
 
 ```cpp
 VkPipelineRenderingCreateInfo renderingCI{
@@ -1437,10 +1447,15 @@ vkCmdBeginRendering(cb, &renderingInfo);
 
 Inside this render pass instance we can finally start recording GPU commands. Remember that these aren't issued to the GPU just yet, but are only recorded into the current command buffer.
 
-We start by setting up the [viewport](https://docs.vulkan.org/spec/latest/chapters/vertexpostproc.html#vertexpostproc-viewport) to define our rendering area. We always want this to be the whole window. Same for the [scissor](https://docs.vulkan.org/spec/latest/chapters/fragops.html#fragops-scissor) area. Both are part of the dynamic state we enabled at [pipeline creation](#graphics-pipeline), so we can adjust them inside the command buffer instead of having the recreate the graphics pipeline on each window resize:
+We start by setting up the [viewport](https://docs.vulkan.org/spec/latest/chapters/vertexpostproc.html#vertexpostproc-viewport) to define our rendering area. We always want this to be the whole window. Same for the [scissor](https://docs.vulkan.org/spec/latest/chapters/fragops.html#fragops-scissor) area. Both are part of the dynamic state we enabled at [pipeline creation](#graphics-pipeline), so we can adjust them inside the command buffer instead of having to recreate the graphics pipeline on each window resize:
 
 ```cpp
-VkViewport vp{ .width = static_cast<float>(window.getSize().x), .height = static_cast<float>(window.getSize().y), .minDepth = 0.0f, .maxDepth = 1.0f};
+VkViewport vp{
+    .width = static_cast<float>(window.getSize().x),
+    .height = static_cast<float>(window.getSize().y),
+    .minDepth = 0.0f,
+    .maxDepth = 1.0f
+};
 vkCmdSetViewport(cb, 0, 1, &vp);
 VkRect2D scissor{ .extent{ .width = window.getSize().x, .height = window.getSize().y } };
 vkCmdSetScissor(cb, 0, 1, &scissor);
