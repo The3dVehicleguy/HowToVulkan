@@ -1635,6 +1635,7 @@ Although it's optional, and something games often don't implement, we also handl
 ```cpp
 if (const auto* resized = event->getIf<sf::Event::Resized>()) {
 	vkDeviceWaitIdle(device);
+	chk(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(devices[deviceIndex], surface, &surfaceCaps));
 	swapchainCI.oldSwapchain = swapchain;
 	swapchainCI.imageExtent = { .width = static_cast<uint32_t>(resized->size.x), .height = static_cast<uint32_t>(resized->size.y) };
 	chk(vkCreateSwapchainKHR(device, &swapchainCI, nullptr, &swapchain));
