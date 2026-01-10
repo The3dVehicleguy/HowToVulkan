@@ -145,6 +145,36 @@ This is very simple. We pass our application info and both the names and number 
 
 	Most Vulkan functions can fail in different ways and return a [`VkResult`](https://docs.vulkan.org/refpages/latest/refpages/source/VkResult.html) value. We use a small inline function called `chk` to check that return code and in case of an error we exit the application. In a real-world application you should do more sophisticated error handling.
 
+## Device selection
+
+We now have to choose the device we want to use for rendering. Although this isn't typical, it’s possible to have several Vulkan-capable devices within a single system. For instance, if you have multiple GPUs installed or if you have both an integrated and a discrete GPU:
+
+!!! Info
+	
+	When dealing with Vulkan a commonly used term is implementation. This refers to something that implements the Vulkan API. Usually it's the driver for your GPU, but it also could be a CPU based software implementation. To keep things simple we'll be using the term GPU for the rest of the tutorial.
+
+For that, we get a list of all available physical devices supporting Vulkan:
+
+```cpp
+uint32_t deviceCount{ 0 };
+chk(vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr));
+std::vector<VkPhysicalDevice> devices(deviceCount);
+chk(vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()));
+```
+
+After the second call to [`vkEnumeratePhysicalDevices`](https://docs.vulkan.org/refpages/latest/refpages/source/vkEnumeratePhysicalDevices.html) we have a list of all available Vulkan capable devices.
+
+
+!!! Info
+
+	Having to call functions that return some sort of list twice is common in the Vulkan C-API. The first call will return the number of elements, which is then used to properly size the result list. The second call then fills the actual result list.
+
+Because most systems only have one device, we simply use the first physical device that supports Vulkan. In a real-world application you could let the user select different devices, e.g. via command line arguments or in an options screen:
+
+```cpp
+const uint32_t deviceIndex{ 0 };
+```
+
 ## Queues
 
 In Vulkan, work is not directly submitted to a device but rather to a queue. A queue abstracts access to a piece of hardware (graphics, compute, transfer, video, etc.). They are organized in queue families, with each family describing a set of queues with common functionality. Available queue types differ between GPUs. As we'll only do graphics operations, we need to just find one queue family with graphics support. This is done by checking for the [`VK_QUEUE_GRAPHICS_BIT`](https://docs.vulkan.org/refpages/latest/refpages/source/VkQueueFlagBits.html) flag:
@@ -181,28 +211,9 @@ VkDeviceQueueCreateInfo queueCI{
 
 ## Device setup
 
-Now that we have a connection to the Vulkan library and know what queue family we want to use, we need to get a handle to the GPU. This is called a **device** in Vulkan. Vulkan distinguishes between physical and logical devices. The former presents the actual device (usually the GPU), the latter presents a handle to that device's Vulkan implementation which the application will interact with.
+Now that we have a connection to the Vulkan library, selected a physical device and know what queue family we want to use, we need to get a handle to the GPU. This is called a **device** in Vulkan. Vulkan distinguishes between physical and logical devices. The former presents the actual device (usually the GPU), the latter presents a handle to that device's Vulkan implementation which the application will interact with.
 
-!!! Info
-	
-	When dealing with Vulkan a commonly used term is implementation. This refers to something that implements the Vulkan API. Usually it's the driver for your GPU, but it also could be a CPU based software implementation. To keep things simple we'll be using the term GPU for the rest of the tutorial.
-
-First we need to get a list of physical devices currently available:
-
-```cpp
-uint32_t deviceCount{ 0 };
-chk(vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr));
-std::vector<VkPhysicalDevice> devices(deviceCount);
-chk(vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()));
-```
-
-!!! Info
-
-	Having to call functions that return some sort of list twice is common in the Vulkan C-API. The first call will return the number of elements, which is then used to properly size the result list. The second call then fills the actual result list.
-
-After the second call to [`vkEnumeratePhysicalDevices`](https://docs.vulkan.org/refpages/latest/refpages/source/vkEnumeratePhysicalDevices.html) we have a list of available Vulkan capable devices. On most systems there will only be one device, so for simplicity we use the first physical device. In a real-world application you could let the user select different devices, e.g. via command line arguments.
-
-One thing that's also part of device creation is requesting features and extensions we want to use. Our instance was created with Vulkan 1.3 as a baseline, which gives us almost all the features we want to use. So we only have to request the [`VK_KHR_swapchain`](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_swapchain.html) extension in order to be able to present something to the screen:
+An important part of device creation is requesting features and extensions we want to use. Our instance was created with Vulkan 1.3 as a baseline, which gives us almost all the features we want to use. So we only have to request the [`VK_KHR_swapchain`](https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_swapchain.html) extension in order to be able to present something to the screen:
 
 ```cpp
 const std::vector<const char*> deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };

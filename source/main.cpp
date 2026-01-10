@@ -110,11 +110,11 @@ int main()
 	chk(vkCreateInstance(&instanceCI, nullptr, &instance));
 	volkLoadInstance(instance);
 	// Device
-	const uint32_t deviceIndex{ 0 };
 	uint32_t deviceCount{ 0 };
 	chk(vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr));
 	std::vector<VkPhysicalDevice> devices(deviceCount);
 	chk(vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()));
+	const uint32_t deviceIndex{ 0 };
 	// Find a queue family for graphics
 	uint32_t queueFamilyCount{ 0 };
 	vkGetPhysicalDeviceQueueFamilyProperties(devices[deviceIndex], &queueFamilyCount, nullptr);
