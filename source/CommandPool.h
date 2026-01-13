@@ -16,14 +16,17 @@ public:
     CommandPool& operator=(const CommandPool&) = delete;
 
     // Movable
-    CommandPool(CommandPool&&) noexcept = default;
-    CommandPool& operator=(CommandPool&&) noexcept = default;
+    CommandPool(CommandPool&& other) noexcept;
+    CommandPool& operator=(CommandPool&& other) noexcept;
 
     // Allocate `count` primary command buffers from the owned pool.
     std::vector<VkCommandBuffer> allocate(VkDevice device, uint32_t count) const;
 
     // Access underlying VkCommandPool
     VkCommandPool getPool() const { return pool_; }
+
+    // Explicitly destroy the command pool before device destruction
+    void destroy();
 
 private:
     VkCommandPool pool_{ VK_NULL_HANDLE };

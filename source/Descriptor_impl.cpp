@@ -5,8 +5,13 @@
 #include <iostream>
 #include <vector>
 
-VkDescriptorSetLayout Descriptor::createLayout(VkDevice device, uint32_t bindingCount) const
+
+bool Descriptor::init(VkDevice device, uint32_t bindingCount, uint32_t descriptorCount)
 {
+    if (device == VK_NULL_HANDLE) return false;
+    device_ = device;
+
+    // Create layout
     VkDescriptorSetLayoutBinding binding{};
     binding.binding = 0;
     binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -14,44 +19,42 @@ VkDescriptorSetLayout Descriptor::createLayout(VkDevice device, uint32_t binding
     binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     binding.pImmutableSamplers = nullptr;
 
-    VkDescriptorSetLayoutCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    ci.bindingCount = 1;
-    ci.pBindings = &binding;
+    VkDescriptorSetLayoutCreateInfo layoutCI{};
+    layoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutCI.bindingCount = 1;
+    layoutCI.pBindings = &binding;
 
-    VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-    VkResult r = vkCreateDescriptorSetLayout(device, &ci, nullptr, &layout);
+    VkResult r = vkCreateDescriptorSetLayout(device_, &layoutCI, nullptr, &layout_);
     if (r != VK_SUCCESS) {
         std::cerr << "vkCreateDescriptorSetLayout failed: " << r << std::endl;
-        return VK_NULL_HANDLE;
+        return false;
     }
-    return layout;
-}
 
-VkDescriptorPool Descriptor::createPool(VkDevice device, uint32_t descriptorCount) const
-{
+    // Create pool
     VkDescriptorPoolSize poolSize{};
     poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSize.descriptorCount = descriptorCount;
 
-    VkDescriptorPoolCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    ci.maxSets = 1;
-    ci.poolSizeCount = 1;
-    ci.pPoolSizes = &poolSize;
+    VkDescriptorPoolCreateInfo poolCI{};
+    poolCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolCI.maxSets = 1;
+    poolCI.poolSizeCount = 1;
+    poolCI.pPoolSizes = &poolSize;
 
-    VkDescriptorPool pool = VK_NULL_HANDLE;
-    VkResult r = vkCreateDescriptorPool(device, &ci, nullptr, &pool);
+    r = vkCreateDescriptorPool(device_, &poolCI, nullptr, &pool_);
     if (r != VK_SUCCESS) {
         std::cerr << "vkCreateDescriptorPool failed: " << r << std::endl;
-        return VK_NULL_HANDLE;
+        vkDestroyDescriptorSetLayout(device_, layout_, nullptr);
+        layout_ = VK_NULL_HANDLE;
+        return false;
     }
-    return pool;
+
+    return true;
 }
 
-VkDescriptorSet Descriptor::allocateAndWrite(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout, const std::vector<VkDescriptorImageInfo>& imageInfos) const
+VkDescriptorSet Descriptor::allocateAndWrite(const std::vector<VkDescriptorImageInfo>& imageInfos) const
 {
-    if (pool == VK_NULL_HANDLE) return VK_NULL_HANDLE;
+    if (device_ == VK_NULL_HANDLE || pool_ == VK_NULL_HANDLE || layout_ == VK_NULL_HANDLE) return VK_NULL_HANDLE;
     uint32_t variableDescCount = static_cast<uint32_t>(imageInfos.size());
 
     VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescCountAI{};
@@ -63,11 +66,11 @@ VkDescriptorSet Descriptor::allocateAndWrite(VkDevice device, VkDescriptorPool p
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.pNext = &variableDescCountAI;
-    allocInfo.descriptorPool = pool;
+    allocInfo.descriptorPool = pool_;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &layout;
+    allocInfo.pSetLayouts = &layout_;
 
-    VkResult r = vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet);
+    VkResult r = vkAllocateDescriptorSets(device_, &allocInfo, &descriptorSet);
     if (r != VK_SUCCESS) {
         std::cerr << "vkAllocateDescriptorSets failed: " << r << std::endl;
         return VK_NULL_HANDLE;
@@ -80,7 +83,8 @@ VkDescriptorSet Descriptor::allocateAndWrite(VkDevice device, VkDescriptorPool p
     writeDescSet.descriptorCount = variableDescCount;
     writeDescSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     writeDescSet.pImageInfo = imageInfos.data();
-    vkUpdateDescriptorSets(device, 1, &writeDescSet, 0, nullptr);
+    vkUpdateDescriptorSets(device_, 1, &writeDescSet, 0, nullptr);
 
     return descriptorSet;
 }
+

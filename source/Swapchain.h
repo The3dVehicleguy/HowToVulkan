@@ -15,6 +15,8 @@ public:
     VkSwapchainKHR create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator);
 
     // Recreate the swapchain (destroys previous images/views/depth and creates new ones).
+    // Recreate the swapchain: waits for device idle, refreshes surface caps,
+    // creates a new swapchain and replaces internal resources safely.
     VkSwapchainKHR recreate(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator);
 
     // Destroy all resources owned by this helper.

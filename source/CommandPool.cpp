@@ -4,6 +4,7 @@
 #include <volk/volk.h>
 #include <vector>
 #include <iostream>
+#include <utility>
 
 CommandPool::CommandPool(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags)
 {
@@ -23,9 +24,31 @@ CommandPool::CommandPool(VkDevice device, uint32_t queueFamilyIndex, VkCommandPo
 
 CommandPool::~CommandPool()
 {
+	destroy();
+}
+
+CommandPool::CommandPool(CommandPool&& other) noexcept
+	: pool_(std::exchange(other.pool_, VK_NULL_HANDLE))
+	, device_(std::exchange(other.device_, VK_NULL_HANDLE))
+{
+}
+
+CommandPool& CommandPool::operator=(CommandPool&& other) noexcept
+{
+	if (this != &other) {
+		destroy();
+		pool_ = std::exchange(other.pool_, VK_NULL_HANDLE);
+		device_ = std::exchange(other.device_, VK_NULL_HANDLE);
+	}
+	return *this;
+}
+
+void CommandPool::destroy()
+{
 	if (device_ != VK_NULL_HANDLE && pool_ != VK_NULL_HANDLE) {
 		vkDestroyCommandPool(device_, pool_, nullptr);
 		pool_ = VK_NULL_HANDLE;
+		device_ = VK_NULL_HANDLE;
 	}
 }
 

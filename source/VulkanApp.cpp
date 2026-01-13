@@ -4,37 +4,37 @@
 #include <SFML/Graphics.hpp>
 #include <vulkan/vulkan.h>
 #define VOLK_IMPLEMENTATION
-#include <volk/volk.h>
-#include <vector>
 #include <array>
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <optional>
 #include <cassert>
+#include <fstream>
+#include <iostream>
+#include <optional>
+#include <string>
+#include <vector>
+#include <volk/volk.h>
 #define VMA_IMPLEMENTATION
 #include <vma/vk_mem_alloc.h>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "slang/slang-com-ptr.h"
+#include "slang/slang.h"
+#include <ktx.h>
+#include <ktxvulkan.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include "slang/slang.h"
-#include "slang/slang-com-ptr.h"
-#include <ktx.h>
-#include <ktxvulkan.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
-#include "InstanceWrapper.h"
-#include "PhysicalDevice.h"
-#include "LogicalDevice.h"
-#include "Swapchain.h"
 #include "CommandPool.h"
 #include "Descriptor.h"
-#include "TextureImage.h"
+#include "InstanceWrapper.h"
+#include "LogicalDevice.h"
+#include "PhysicalDevice.h"
 #include "Pipeline.h"
 #include "Renderer.h"
+#include "Swapchain.h"
+#include "TextureImage.h"
 
 static inline void chk(VkResult result) {
     if (result != VK_SUCCESS) {
@@ -100,18 +100,12 @@ int VulkanApp::run()
     // Window and surface
     auto window = sf::RenderWindow(sf::VideoMode({ 1280, 720u }), "How to Vulkan");
     VkSurfaceKHR surface{ VK_NULL_HANDLE };
-    // More verbose check for surface creation to help diagnose runtime failures.
-    bool surfaceCreated = window.createVulkanSurface(instance, surface);
-    if (!surfaceCreated) {
-        std::cerr << "createVulkanSurface returned false\n";
-        chk(false); // will print generic message and exit
-    }
+    chk(window.createVulkanSurface(instance, surface));
     VkSurfaceCapabilitiesKHR surfaceCaps{};
     chk(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &surfaceCaps));
 
     // Swap chain (use helper)
     Swapchain swapHelper;
-    std::cerr << "VulkanApp: calling swapHelper.create(...)\n";
     VkSwapchainKHR swapchain = swapHelper.create(physical, device, surface, queueFamily, allocator);
     auto& swapchainImages = swapHelper.images();
     auto& swapchainImageViews = swapHelper.imageViews();
@@ -123,12 +117,7 @@ int VulkanApp::run()
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
-    std::cerr << "Loading mesh assets/suzanne.obj...\n";
-    bool meshLoaded = tinyobj::LoadObj(&attrib, &shapes, &materials, nullptr, nullptr, "assets/suzanne.obj");
-    if (!meshLoaded) {
-        std::cerr << "tinyobj::LoadObj failed\n";
-        chk(false);
-    }
+    chk(tinyobj::LoadObj(&attrib, &shapes, &materials, nullptr, nullptr, "assets/suzanne.obj"));
     const VkDeviceSize indexCount{ shapes[0].mesh.indices.size() };
     std::vector<Vertex> vertices{};
     std::vector<uint16_t> indices{};
@@ -172,7 +161,7 @@ int VulkanApp::run()
     std::vector<VkSemaphore> renderSemaphores;
     VkSemaphoreCreateInfo semaphoreCI{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     VkFenceCreateInfo fenceCI{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .flags = VK_FENCE_CREATE_SIGNALED_BIT };
-    for (auto i = 0; i < VulkanApp::maxFramesInFlight; i++) {
+    for (auto i = 0; std::cmp_less(i, VulkanApp::maxFramesInFlight); i++) {
         chk(vkCreateFence(device, &fenceCI, nullptr, &fences[i]));
         chk(vkCreateSemaphore(device, &semaphoreCI, nullptr, &presentSemaphores[i]));
     }
@@ -195,7 +184,7 @@ int VulkanApp::run()
         std::string filename = "assets/suzanne" + std::to_string(i) + ".ktx";
     textures[i] = texLoader.load(device, allocator, cmdPoolHelper.getPool(), queue, filename);
         if (textures[i].image == VK_NULL_HANDLE) {
-            std::cerr << "Failed to load texture: " << filename << std::endl;
+            std::cerr << "Failed to load texture: " << filename << '\n';
             chk(VK_ERROR_INITIALIZATION_FAILED);
         }
         textureDescriptors.push_back({ .sampler = textures[i].sampler, .imageView = textures[i].view, .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL });
@@ -206,12 +195,12 @@ int VulkanApp::run()
     VkDescriptorSetLayout descriptorSetLayoutTex = descHelper.createLayout(device, static_cast<uint32_t>(textures.size()));
     VkDescriptorPool descriptorPool = descHelper.createPool(device, static_cast<uint32_t>(textures.size()));
     if (descriptorPool == VK_NULL_HANDLE) {
-        std::cerr << "Failed to create descriptor pool" << std::endl;
+        std::cerr << "Failed to create descriptor pool" << '\n';
         chk(VK_ERROR_INITIALIZATION_FAILED);
     }
     VkDescriptorSet descriptorSetTex = descHelper.allocateAndWrite(device, descriptorPool, descriptorSetLayoutTex, textureDescriptors);
     if (descriptorSetTex == VK_NULL_HANDLE) {
-        std::cerr << "Failed to allocate descriptor set" << std::endl;
+        std::cerr << "Failed to allocate descriptor set" << '\n';
         chk(VK_ERROR_INITIALIZATION_FAILED);
     }
 
@@ -250,7 +239,7 @@ int VulkanApp::run()
     Pipeline pipelineHelper;
     VkPipeline pipeline = pipelineHelper.createGraphics(device, pipelineLayout, shaderModule, vertexBinding, vertexAttributes, imageFormat, depthFormat);
     if (pipeline == VK_NULL_HANDLE) {
-        std::cerr << "Failed to create graphics pipeline" << std::endl;
+        std::cerr << "Failed to create graphics pipeline" << '\n';
         chk(VK_ERROR_INITIALIZATION_FAILED);
     }
 
@@ -288,7 +277,7 @@ int VulkanApp::run()
 
     // Tear down
     chk(vkDeviceWaitIdle(device));
-    for (auto i = 0; i < VulkanApp::maxFramesInFlight; i++) {
+    for (auto i = 0; std::cmp_less(i, VulkanApp::maxFramesInFlight); i++) {
         vkDestroyFence(device, fences[i], nullptr);
         vkDestroySemaphore(device, presentSemaphores[i], nullptr);
         vkDestroySemaphore(device, renderSemaphores[i], nullptr);
@@ -298,10 +287,11 @@ int VulkanApp::run()
     // Swapchain helper owns swapchain images, image views and depth image.
     swapHelper.destroy(device, allocator);
     vmaDestroyBuffer(allocator, vBuffer, vBufferAllocation);
-    for (auto i = 0; i < textures.size(); i++) {
-        vkDestroyImageView(device, textures[i].view, nullptr);
-        vkDestroySampler(device, textures[i].sampler, nullptr);
-        vmaDestroyImage(allocator, textures[i].image, textures[i].allocation);
+    for (auto& texture : textures)
+    {
+        vkDestroyImageView(device, texture.view, nullptr);
+        vkDestroySampler(device, texture.sampler, nullptr);
+        vmaDestroyImage(allocator, texture.image, texture.allocation);
     }
     vkDestroyDescriptorSetLayout(device, descriptorSetLayoutTex, nullptr);
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
@@ -309,11 +299,12 @@ int VulkanApp::run()
     vkDestroyPipeline(device, pipeline, nullptr);
     // swapHelper.destroy already cleaned up the swapchain
     vkDestroySurfaceKHR(instance, surface, nullptr);
-    // Command pool will be destroyed automatically by CommandPool's destructor.
+    // Explicitly destroy command pool before device destruction
+    cmdPoolHelper.destroy();
     vkDestroyShaderModule(device, shaderModule, nullptr);
     vmaDestroyAllocator(allocator);
     vkDestroyDevice(device, nullptr);
-    vkDestroyInstance(instance, nullptr);
+    // Instance is destroyed automatically by InstanceWrapper destructor
 
     return 0;
 }

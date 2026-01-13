@@ -11,17 +11,37 @@ struct VkDescriptorImageInfo;
 class Descriptor {
 public:
     Descriptor() = default;
-    ~Descriptor() = default;
+    ~Descriptor();
+    VkDescriptorSetLayout createLayout(VkDevice device, uint32_t bindingCount) const;
+    VkDescriptorPool createPool(VkDevice device, uint32_t descriptorCount) const;
+    VkDescriptorSet allocateAndWrite(
+        VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout,
+        const std::vector<VkDescriptorImageInfo>& imageInfos) const;
 
-    // Create a descriptor set layout suitable for an array of combined image samplers.
-    // Returns VK_NULL_HANDLE on failure.
-    VkDescriptorSetLayout createLayout(VkDevice device, uint32_t bindingCount = 1) const;
+    // Non-copyable
+    Descriptor(const Descriptor&) = delete;
+    Descriptor& operator=(const Descriptor&) = delete;
 
-    // Create a simple descriptor pool able to allocate a single descriptor set containing
-    // `descriptorCount` combined image samplers. Returns VK_NULL_HANDLE on failure.
-    VkDescriptorPool createPool(VkDevice device, uint32_t descriptorCount = 1) const;
+    // Movable
+    Descriptor(Descriptor&&) noexcept;
+    Descriptor& operator=(Descriptor&&) noexcept;
 
-    // Allocate a descriptor set from `pool` with layout `layout` and update it with
-    // the provided image infos. Returns VK_NULL_HANDLE on failure.
-    VkDescriptorSet allocateAndWrite(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout, const std::vector<VkDescriptorImageInfo>& imageInfos) const;
+    // Initialize the descriptor helper: create a layout for bindingCount
+    // combined image samplers and a pool sized for descriptorCount.
+    // Returns true on success.
+    bool init(VkDevice device, uint32_t bindingCount = 1, uint32_t descriptorCount = 1);
+
+    // Allocate a descriptor set from the internally owned pool/layout and
+    // update it with imageInfos. Returns VK_NULL_HANDLE on failure.
+    VkDescriptorSet allocateAndWrite(const std::vector<VkDescriptorImageInfo>& imageInfos) const;
+
+    // Accessors
+    VkDescriptorPool getPool() const { return pool_; }
+    VkDescriptorSetLayout getLayout() const { return layout_; }
+
+private:
+    VkDevice device_{ VK_NULL_HANDLE };
+    VkDescriptorPool pool_{ VK_NULL_HANDLE };
+    VkDescriptorSetLayout layout_{ VK_NULL_HANDLE };
 };
+

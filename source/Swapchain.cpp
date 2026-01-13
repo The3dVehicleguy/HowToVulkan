@@ -14,8 +14,7 @@ static inline void chk(VkResult r) {
 
 VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator)
 {
-	static int createCallCount = 0;
-	std::cerr << "Swapchain::create entered (this=" << this << ") call#" << ++createCallCount << "\n";
+	// create - no debug prints in production
 
 	// Query surface formats and pick a reasonable default.
 	uint32_t formatCount = 0;
@@ -42,9 +41,7 @@ VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice devic
 		return VK_NULL_HANDLE;
 	}
 
-	// Debug print surface/caps info to help diagnose swapchain creation failures.
-	std::cerr << "Surface format chosen: " << surfaceFormat.format << ", extent: " << caps.currentExtent.width << "x" << caps.currentExtent.height
-		<< ", minImageCount=" << caps.minImageCount << ", maxImageCount=" << caps.maxImageCount << std::endl;
+	// (no debug prints)
 
 	VkExtent2D extent = caps.currentExtent;
 	if (extent.width == (uint32_t)-1) { extent = {640, 480}; }
@@ -77,7 +74,6 @@ VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice devic
 	VkResult r = vkCreateSwapchainKHR(device, &ci, nullptr, &newSwap);
 	if (r != VK_SUCCESS) {
 		std::cerr << "vkCreateSwapchainKHR failed: " << r << std::endl;
-		std::cerr << "Swapchain::create (this=" << this << ") returning VK_NULL_HANDLE\n";
 		return VK_NULL_HANDLE;
 	}
 
@@ -151,13 +147,24 @@ VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice devic
 	depthAlloc_ = newDepthAlloc;
 	depthView_ = newDepthView;
 
-	std::cerr << "Swapchain::create (this=" << this << ") succeeded, swapchain_=" << swapchain_ << "\n";
+	// creation succeeded
 	return swapchain_;
 }
 
 VkSwapchainKHR Swapchain::recreate(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator)
 {
-	// Simply create will destroy old resources first; reuse create implementation
+	// Centralized recreation flow:
+	//  1. Wait for device idle to ensure no commands reference swapchain resources.
+	//  2. Query surface capabilities (create() will also query internally but
+	//     keeping the wait and capability refresh here keeps caller simpler).
+	//  3. Call create() which will create the new swapchain and swap resources.
+	// The create() implementation already handles passing the old swapchain
+	// through the create-info, and replaces resources after the new ones are
+	// successfully created.
+	vkDeviceWaitIdle(device);
+	VkSurfaceCapabilitiesKHR caps{};
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &caps);
+	(void)caps; // currently unused here but helpful for future policies
 	return create(physicalDevice, device, surface, queueFamilyIndex, allocator);
 }
 

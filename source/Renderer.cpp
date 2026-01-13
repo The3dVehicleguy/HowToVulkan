@@ -70,7 +70,15 @@ int Renderer::run(const RenderContext& ctx)
         auto &swapchainImages = swapHelper.images();
         auto &swapchainImageViews = swapHelper.imageViews();
         VkImageView depthImageView = swapHelper.getDepthView();
-        vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, presentSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
+        VkResult acquireRes = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, presentSemaphores[frameIndex], VK_NULL_HANDLE, &imageIndex);
+        if (acquireRes == VK_ERROR_OUT_OF_DATE_KHR || acquireRes == VK_SUBOPTIMAL_KHR) {
+            // Swapchain no longer compatible with window; recreate and skip this frame.
+            swapHelper.recreate(physical, device, ctx.surface, queueFamily, allocator);
+            continue;
+        } else if (acquireRes != VK_SUCCESS) {
+            std::cerr << "vkAcquireNextImageKHR failed: " << acquireRes << std::endl;
+            return -1;
+        }
 
         // Update shader data
     shaderData.projection = glm::perspective(glm::radians(45.0f), (float)window.getSize().x / (float)window.getSize().y, 0.1f, 32.0f);
@@ -186,7 +194,15 @@ int Renderer::run(const RenderContext& ctx)
             .pSwapchains = &swapchain,
             .pImageIndices = &imageIndex
         };
-        chk(vkQueuePresentKHR(queue, &presentInfo));
+        VkResult presentRes = vkQueuePresentKHR(queue, &presentInfo);
+        if (presentRes == VK_ERROR_OUT_OF_DATE_KHR || presentRes == VK_SUBOPTIMAL_KHR) {
+            // Present situation requires swapchain recreation
+            swapHelper.recreate(physical, device, ctx.surface, queueFamily, allocator);
+            continue;
+        } else if (presentRes != VK_SUCCESS) {
+            std::cerr << "vkQueuePresentKHR failed: " << presentRes << std::endl;
+            return -1;
+        }
 
         // Event polling
         sf::Time elapsed = clock.restart();
@@ -216,13 +232,9 @@ int Renderer::run(const RenderContext& ctx)
 
             // Window resize - recreate swapchain and depth image
             if (const auto* resized = event->getIf<sf::Event::Resized>()) {
-                vkDeviceWaitIdle(device);
-                chk(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, ctx.surface, &surfaceCaps));
-                // Recreate swapchain via helper (it will destroy/create its images, views and depth image)
-                vkDeviceWaitIdle(device);
+                // Delegate full recreation to Swapchain::recreate which handles
+                // device idle and surface capability refresh internally.
                 swapHelper.recreate(physical, device, ctx.surface, queueFamily, allocator);
-                // After recreation, refresh local references to images/views
-                // (they are fetched each frame at the top of the loop)
             }
         }
     }
