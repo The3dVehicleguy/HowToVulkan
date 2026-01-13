@@ -66,9 +66,23 @@ add_executable(${NAME}
     InstanceWrapper.cpp
     LogicalDevice.h
     LogicalDevice.cpp
+    AllocatorWrapper.h
+    AllocatorWrapper.cpp
+    CommandPool.h
+    CommandPool.cpp
+    Descriptor.h
+    Descriptor.cpp
+    Descriptor_impl.cpp
+    InstanceWrapper.h
+    InstanceWrapper.cpp
+    LogicalDevice.h
+    LogicalDevice.cpp
     main.cpp
     NewRenderer.h
+    NewRenderer.h
     VulkanApp.cpp
+    VulkanApp.h
+    PhysicalDevice.h
     VulkanApp.h
     PhysicalDevice.h
     PhysicalDevice.cpp
@@ -84,9 +98,12 @@ add_executable(${NAME}
     AssetManager.h
     TextureImage.cpp
     TextureImage.h
+    TextureImage.h
     Pipeline.cpp
     Pipeline.h
+    Pipeline.h
     Renderer.cpp
+    Renderer.h
     Renderer.h
     assets/shader.slang)
 add_definitions(-D_CRT_SECURE_NO_WARNINGS -DVK_NO_PROTOTYPES)

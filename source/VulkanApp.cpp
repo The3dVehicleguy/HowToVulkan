@@ -23,6 +23,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
 #include "CommandPool.h"
@@ -32,20 +33,6 @@
 #include "PhysicalDevice.h"
 #include "Pipeline.h"
 #include "Renderer.h"
-#include "RenderContext.h"
-#include "Swapchain.h"
-#include "TextureImage.h"
-#include "Buffer.h"
-#include "SyncObjects.h"
-#include "ShaderModule.h"
-// RAII helpers added during refactor
-#include "UniformBufferSet.h"
-#include "ShaderManager.h"
-#include "TextureHandle.h"
-#include "DescriptorRAII.h"
-#include "OwnedPipeline.h"
-#include "Model.h"
-#include "AssetManager.h"
 
 static inline void chk(VkResult result) {
     if (result != VK_SUCCESS) {
@@ -117,11 +104,12 @@ int VulkanApp::Run()
 
     // Swap chain (use helper)
     Swapchain swapHelper;
-    VkSwapchainKHR swapchain = swapHelper.Create(physical, device, surface, queueFamily, allocator);
-    auto& swapchainImages = swapHelper.Images();
-    auto& swapchainImageViews = swapHelper.ImageViews();
-    const VkFormat imageFormat = swapHelper.GetImageFormat();
-    const VkFormat depthFormat = swapHelper.GetDepthFormat();
+    std::cerr << "VulkanApp: calling swapHelper.create(...)\n";
+    VkSwapchainKHR swapchain = swapHelper.create(physical, device, surface, queueFamily, allocator);
+    auto& swapchainImages = swapHelper.images();
+    auto& swapchainImageViews = swapHelper.imageViews();
+    const VkFormat imageFormat = swapHelper.getImageFormat();
+    const VkFormat depthFormat = swapHelper.getDepthFormat();
     uint32_t imageCount = static_cast<uint32_t>(swapchainImages.size());
 
     // Command pool needed for texture uploads and transient work (create early)
