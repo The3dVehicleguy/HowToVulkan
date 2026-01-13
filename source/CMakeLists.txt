@@ -54,7 +54,20 @@ if(MSVC)
 endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/")
 
-add_executable(${NAME} main.cpp assets/shader.slang)
+add_executable(${NAME}
+    main.cpp
+    VulkanApp.cpp
+    InstanceWrapper.cpp
+    PhysicalDevice.cpp
+    LogicalDevice.cpp
+    AllocatorWrapper.cpp
+    Swapchain.cpp
+    CommandPool.cpp
+    TextureImage.cpp
+    Descriptor_impl.cpp
+    Pipeline.cpp
+    Renderer.cpp
+    assets/shader.slang)
 add_definitions(-D_CRT_SECURE_NO_WARNINGS -DVK_NO_PROTOTYPES)
 set_target_properties(${NAME} PROPERTIES DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(${NAME} PRIVATE cxx_std_20)
