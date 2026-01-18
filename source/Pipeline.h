@@ -2,22 +2,28 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include "ShaderManager.h"
 #include <vector>
 
+// Pipeline helper: creates pipelines from an input descriptor struct to make
+// constructing different kinds of pipelines (graphics/compute) easier.
 class Pipeline {
 public:
     Pipeline() = default;
     ~Pipeline() = default;
 
-    // Create a graphics pipeline using the provided shader module (used for both
-    // vertex and fragment stages), the pipeline layout, vertex input descriptions
-    // and the color/depth formats. Returns VK_NULL_HANDLE on failure.
-    VkPipeline createGraphics(
-        VkDevice device,
-        VkPipelineLayout layout,
-        VkShaderModule shaderModule,
-        const VkVertexInputBindingDescription& vertexBinding,
-        const std::vector<VkVertexInputAttributeDescription>& vertexAttributes,
-        VkFormat colorFormat,
-        VkFormat depthFormat) const;
+    // Descriptor grouping inputs required for creating a graphics pipeline.
+    struct GraphicsCreateInfo {
+        VkDevice device{ VK_NULL_HANDLE };
+        VkPipelineLayout layout{ VK_NULL_HANDLE };
+        const ShaderManager* shaderManager{ nullptr };
+        VkVertexInputBindingDescription vertexBinding{};
+        std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
+        VkFormat colorFormat{ VK_FORMAT_UNDEFINED };
+        VkFormat depthFormat{ VK_FORMAT_UNDEFINED };
+    };
+
+    // Create a graphics pipeline using a single grouped input structure.
+    // Returns VK_NULL_HANDLE on failure.
+    VkPipeline createGraphics(const GraphicsCreateInfo& info) const;
 };

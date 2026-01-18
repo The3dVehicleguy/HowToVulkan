@@ -14,8 +14,9 @@ CommandPool::CommandPool(VkDevice device, uint32_t queueFamilyIndex, VkCommandPo
 	ci.flags = flags;
 
 	VkResult r = vkCreateCommandPool(device, &ci, nullptr, &pool_);
-	if (r != VK_SUCCESS) {
-		std::cerr << "vkCreateCommandPool failed: " << r << std::endl;
+	if (r != VK_SUCCESS) 
+	{
+		std::cerr << "vkCreateCommandPool failed: " << r << '\n';
 		pool_ = VK_NULL_HANDLE;
 	}
 	// remember device for RAII destruction
@@ -24,7 +25,7 @@ CommandPool::CommandPool(VkDevice device, uint32_t queueFamilyIndex, VkCommandPo
 
 CommandPool::~CommandPool()
 {
-	destroy();
+	Destroy();
 }
 
 CommandPool::CommandPool(CommandPool&& other) noexcept
@@ -35,24 +36,26 @@ CommandPool::CommandPool(CommandPool&& other) noexcept
 
 CommandPool& CommandPool::operator=(CommandPool&& other) noexcept
 {
-	if (this != &other) {
-		destroy();
+	if (this != &other) 
+	{
+		Destroy();
 		pool_ = std::exchange(other.pool_, VK_NULL_HANDLE);
 		device_ = std::exchange(other.device_, VK_NULL_HANDLE);
 	}
 	return *this;
 }
 
-void CommandPool::destroy()
+void CommandPool::Destroy()
 {
-	if (device_ != VK_NULL_HANDLE && pool_ != VK_NULL_HANDLE) {
+	if (device_ != VK_NULL_HANDLE && pool_ != VK_NULL_HANDLE)
+	{
 		vkDestroyCommandPool(device_, pool_, nullptr);
 		pool_ = VK_NULL_HANDLE;
 		device_ = VK_NULL_HANDLE;
 	}
 }
 
-std::vector<VkCommandBuffer> CommandPool::allocate(VkDevice device, uint32_t count) const
+std::vector<VkCommandBuffer> CommandPool::Allocate(VkDevice device, uint32_t count) const
 {
 	if (pool_ == VK_NULL_HANDLE) return {};
 	std::vector<VkCommandBuffer> buffers(count);
@@ -63,8 +66,9 @@ std::vector<VkCommandBuffer> CommandPool::allocate(VkDevice device, uint32_t cou
 	ai.commandBufferCount = count;
 
 	VkResult r = vkAllocateCommandBuffers(device, &ai, buffers.data());
-	if (r != VK_SUCCESS) {
-		std::cerr << "vkAllocateCommandBuffers failed: " << r << std::endl;
+	if (r != VK_SUCCESS) 
+	{
+		std::cerr << "vkAllocateCommandBuffers failed: " << r << '\n';
 		return {};
 	}
 	return buffers;

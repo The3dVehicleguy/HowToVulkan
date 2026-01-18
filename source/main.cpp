@@ -7,5 +7,5 @@
 int main(int argc, char* argv[])
 {
     VulkanApp app(argc, argv);
-    return app.run();
+    return app.Run();
 }

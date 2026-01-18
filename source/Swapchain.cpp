@@ -5,14 +5,15 @@
 #include <iostream>
 #include <cstring>
 
-static inline void chk(VkResult r) {
+static inline void chk(VkResult r) 
+{
 	if (r != VK_SUCCESS) {
-		std::cerr << "Vulkan error: " << r << std::endl;
+		std::cerr << "Vulkan error: " << r << '\n';
 		exit((int)r);
 	}
 }
 
-VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator)
+VkSwapchainKHR Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator)
 {
 	// create - no debug prints in production
 
@@ -20,7 +21,7 @@ VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice devic
 	uint32_t formatCount = 0;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
 	if (formatCount == 0) {
-		std::cerr << "No surface formats available" << std::endl;
+		std::cerr << "No surface formats available" << '\n';
 		return VK_NULL_HANDLE;
 	}
 	std::vector<VkSurfaceFormatKHR> formats(formatCount);
@@ -44,7 +45,7 @@ VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice devic
 	// (no debug prints)
 
 	VkExtent2D extent = caps.currentExtent;
-	if (extent.width == (uint32_t)-1) { extent = {640, 480}; }
+	if (extent.width == (uint32_t)-1) { extent = {.width = 640, .height = 480}; }
 
 	uint32_t imageCount = caps.minImageCount + 1;
 	if (caps.maxImageCount > 0 && imageCount > caps.maxImageCount) imageCount = caps.maxImageCount;
@@ -73,7 +74,7 @@ VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice devic
 	VkSwapchainKHR newSwap = VK_NULL_HANDLE;
 	VkResult r = vkCreateSwapchainKHR(device, &ci, nullptr, &newSwap);
 	if (r != VK_SUCCESS) {
-		std::cerr << "vkCreateSwapchainKHR failed: " << r << std::endl;
+		std::cerr << "vkCreateSwapchainKHR failed: " << r << '\n';
 		return VK_NULL_HANDLE;
 	}
 
@@ -151,7 +152,7 @@ VkSwapchainKHR Swapchain::create(VkPhysicalDevice physicalDevice, VkDevice devic
 	return swapchain_;
 }
 
-VkSwapchainKHR Swapchain::recreate(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator)
+VkSwapchainKHR Swapchain::Recreate(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator)
 {
 	// Centralized recreation flow:
 	//  1. Wait for device idle to ensure no commands reference swapchain resources.
@@ -165,10 +166,10 @@ VkSwapchainKHR Swapchain::recreate(VkPhysicalDevice physicalDevice, VkDevice dev
 	VkSurfaceCapabilitiesKHR caps{};
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &caps);
 	(void)caps; // currently unused here but helpful for future policies
-	return create(physicalDevice, device, surface, queueFamilyIndex, allocator);
+	return Create(physicalDevice, device, surface, queueFamilyIndex, allocator);
 }
 
-void Swapchain::destroy(VkDevice device, VmaAllocator allocator)
+void Swapchain::Destroy(VkDevice device, VmaAllocator allocator)
 {
 	if (depthView_ != VK_NULL_HANDLE) { vkDestroyImageView(device, depthView_, nullptr); depthView_ = VK_NULL_HANDLE; }
 	if (depthImage_ != VK_NULL_HANDLE) { vmaDestroyImage(allocator, depthImage_, depthAlloc_); depthImage_ = VK_NULL_HANDLE; depthAlloc_ = VK_NULL_HANDLE; }

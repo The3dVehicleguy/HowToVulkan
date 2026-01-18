@@ -50,7 +50,7 @@ Descriptor& Descriptor::operator=(Descriptor&& other) noexcept
     return *this;
 }
 
-VkDescriptorSetLayout Descriptor::createLayout(VkDevice device, uint32_t bindingCount) const
+VkDescriptorSetLayout Descriptor::CreateLayout(VkDevice device, uint32_t bindingCount) const
 {
 	VkDescriptorSetLayoutBinding binding{};
 	binding.binding = 0;
@@ -66,14 +66,15 @@ VkDescriptorSetLayout Descriptor::createLayout(VkDevice device, uint32_t binding
 
 	VkDescriptorSetLayout layout = VK_NULL_HANDLE;
 	VkResult r = vkCreateDescriptorSetLayout(device, &ci, nullptr, &layout);
-	if (r != VK_SUCCESS) {
-		std::cerr << "vkCreateDescriptorSetLayout failed: " << r << std::endl;
+	if (r != VK_SUCCESS) 
+	{
+		std::cerr << "vkCreateDescriptorSetLayout failed: " << r << '\n';
 		return VK_NULL_HANDLE;
 	}
 	return layout;
 }
 
-VkDescriptorPool Descriptor::createPool(VkDevice device, uint32_t descriptorCount) const
+VkDescriptorPool Descriptor::CreatePool(VkDevice device, uint32_t descriptorCount) const
 {
 	VkDescriptorPoolSize poolSize{};
 	poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -87,14 +88,15 @@ VkDescriptorPool Descriptor::createPool(VkDevice device, uint32_t descriptorCoun
 
 	VkDescriptorPool pool = VK_NULL_HANDLE;
 	VkResult r = vkCreateDescriptorPool(device, &ci, nullptr, &pool);
-	if (r != VK_SUCCESS) {
-		std::cerr << "vkCreateDescriptorPool failed: " << r << std::endl;
+	if (r != VK_SUCCESS) 
+	{
+		std::cerr << "vkCreateDescriptorPool failed: " << r << '\n';
 		return VK_NULL_HANDLE;
 	}
 	return pool;
 }
 
-VkDescriptorSet Descriptor::allocateAndWrite(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout, const std::vector<VkDescriptorImageInfo>& imageInfos) const
+VkDescriptorSet Descriptor::AllocateAndWrite(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout, const std::vector<VkDescriptorImageInfo>& imageInfos) const
 {
 	if (pool == VK_NULL_HANDLE) return VK_NULL_HANDLE;
 	uint32_t variableDescCount = static_cast<uint32_t>(imageInfos.size());
@@ -113,8 +115,9 @@ VkDescriptorSet Descriptor::allocateAndWrite(VkDevice device, VkDescriptorPool p
 	allocInfo.pSetLayouts = &layout;
 
 	VkResult r = vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet);
-	if (r != VK_SUCCESS) {
-		std::cerr << "vkAllocateDescriptorSets failed: " << r << std::endl;
+	if (r != VK_SUCCESS)
+	{
+		std::cerr << "vkAllocateDescriptorSets failed: " << r << '\n';
 		return VK_NULL_HANDLE;
 	}
 

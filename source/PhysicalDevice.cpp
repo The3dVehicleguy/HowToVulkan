@@ -3,7 +3,7 @@
 #include <volk/volk.h>
 #include <iostream>
 
-VkPhysicalDevice PhysicalDevice::choose(VkInstance instance, uint32_t index) const
+VkPhysicalDevice PhysicalDevice::Choose(VkInstance instance, uint32_t index) const
 {
     uint32_t deviceCount = 0;
     VkResult r = vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);

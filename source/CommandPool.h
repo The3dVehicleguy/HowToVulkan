@@ -4,7 +4,8 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-class CommandPool {
+class CommandPool 
+{
 public:
     CommandPool() = default;
     // RAII constructor - creates a command pool for the given device/queue family.
@@ -20,13 +21,13 @@ public:
     CommandPool& operator=(CommandPool&& other) noexcept;
 
     // Allocate `count` primary command buffers from the owned pool.
-    std::vector<VkCommandBuffer> allocate(VkDevice device, uint32_t count) const;
+    std::vector<VkCommandBuffer> Allocate(VkDevice device, uint32_t count) const;
 
     // Access underlying VkCommandPool
-    VkCommandPool getPool() const { return pool_; }
+    VkCommandPool GetPool() const { return pool_; }
 
     // Explicitly destroy the command pool before device destruction
-    void destroy();
+    void Destroy();
 
 private:
     VkCommandPool pool_{ VK_NULL_HANDLE };

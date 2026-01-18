@@ -6,7 +6,7 @@
 #include <vector>
 
 
-bool Descriptor::init(VkDevice device, uint32_t bindingCount, uint32_t descriptorCount)
+bool Descriptor::Init(VkDevice device, uint32_t bindingCount, uint32_t descriptorCount)
 {
     if (device == VK_NULL_HANDLE) return false;
     device_ = device;
@@ -25,8 +25,9 @@ bool Descriptor::init(VkDevice device, uint32_t bindingCount, uint32_t descripto
     layoutCI.pBindings = &binding;
 
     VkResult r = vkCreateDescriptorSetLayout(device_, &layoutCI, nullptr, &layout_);
-    if (r != VK_SUCCESS) {
-        std::cerr << "vkCreateDescriptorSetLayout failed: " << r << std::endl;
+    if (r != VK_SUCCESS) 
+    {
+        std::cerr << "vkCreateDescriptorSetLayout failed: " << r << '\n';
         return false;
     }
 
@@ -42,8 +43,9 @@ bool Descriptor::init(VkDevice device, uint32_t bindingCount, uint32_t descripto
     poolCI.pPoolSizes = &poolSize;
 
     r = vkCreateDescriptorPool(device_, &poolCI, nullptr, &pool_);
-    if (r != VK_SUCCESS) {
-        std::cerr << "vkCreateDescriptorPool failed: " << r << std::endl;
+    if (r != VK_SUCCESS) 
+    {
+        std::cerr << "vkCreateDescriptorPool failed: " << r << '\n';
         vkDestroyDescriptorSetLayout(device_, layout_, nullptr);
         layout_ = VK_NULL_HANDLE;
         return false;
@@ -52,7 +54,7 @@ bool Descriptor::init(VkDevice device, uint32_t bindingCount, uint32_t descripto
     return true;
 }
 
-VkDescriptorSet Descriptor::allocateAndWrite(const std::vector<VkDescriptorImageInfo>& imageInfos) const
+VkDescriptorSet Descriptor::AllocateAndWrite(const std::vector<VkDescriptorImageInfo>& imageInfos) const
 {
     if (device_ == VK_NULL_HANDLE || pool_ == VK_NULL_HANDLE || layout_ == VK_NULL_HANDLE) return VK_NULL_HANDLE;
     uint32_t variableDescCount = static_cast<uint32_t>(imageInfos.size());
@@ -71,8 +73,9 @@ VkDescriptorSet Descriptor::allocateAndWrite(const std::vector<VkDescriptorImage
     allocInfo.pSetLayouts = &layout_;
 
     VkResult r = vkAllocateDescriptorSets(device_, &allocInfo, &descriptorSet);
-    if (r != VK_SUCCESS) {
-        std::cerr << "vkAllocateDescriptorSets failed: " << r << std::endl;
+    if (r != VK_SUCCESS)
+    {
+        std::cerr << "vkAllocateDescriptorSets failed: " << r << '\n';
         return VK_NULL_HANDLE;
     }
 

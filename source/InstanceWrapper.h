@@ -12,7 +12,7 @@ public:
     explicit InstanceWrapper(const std::string& appName = "HowToVulkan");
     ~InstanceWrapper();
 
-    VkInstance get() const noexcept { return instance_; }
+    VkInstance Get() const noexcept { return instance_; }
 
     // Non-copyable
     InstanceWrapper(const InstanceWrapper&) = delete;

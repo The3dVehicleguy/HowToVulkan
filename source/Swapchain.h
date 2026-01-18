@@ -5,33 +5,34 @@
 #include <vma/vk_mem_alloc.h>
 #include <vector>
 
-class Swapchain {
+class Swapchain 
+{
 public:
     Swapchain() = default;
     ~Swapchain() = default;
 
     // Create the swapchain and associated image views and depth buffer.
     // Returns the created VkSwapchainKHR or VK_NULL_HANDLE on failure.
-    VkSwapchainKHR create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator);
+    VkSwapchainKHR Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator);
 
     // Recreate the swapchain (destroys previous images/views/depth and creates new ones).
     // Recreate the swapchain: waits for device idle, refreshes surface caps,
     // creates a new swapchain and replaces internal resources safely.
-    VkSwapchainKHR recreate(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator);
+    VkSwapchainKHR Recreate(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, uint32_t queueFamilyIndex, VmaAllocator allocator);
 
     // Destroy all resources owned by this helper.
-    void destroy(VkDevice device, VmaAllocator allocator);
+    void Destroy(VkDevice device, VmaAllocator allocator);
 
     // Accessors
-    VkSwapchainKHR get() const { return swapchain_; }
-    std::vector<VkImage>& images() { return images_; }
-    std::vector<VkImageView>& imageViews() { return imageViews_; }
-    VkImage getDepthImage() const { return depthImage_; }
-    VmaAllocation getDepthAllocation() const { return depthAlloc_; }
-    VkImageView getDepthView() const { return depthView_; }
-    VkFormat getImageFormat() const { return imageFormat_; }
-    VkFormat getDepthFormat() const { return depthFormat_; }
-    VkExtent2D getExtent() const { return extent_; }
+    VkSwapchainKHR Get() const { return swapchain_; }
+    std::vector<VkImage>& Images() { return images_; }
+    std::vector<VkImageView>& ImageViews() { return imageViews_; }
+    VkImage GetDepthImage() const { return depthImage_; }
+    VmaAllocation GetDepthAllocation() const { return depthAlloc_; }
+    VkImageView GetDepthView() const { return depthView_; }
+    VkFormat GetImageFormat() const { return imageFormat_; }
+    VkFormat GetDepthFormat() const { return depthFormat_; }
+    VkExtent2D GetExtent() const { return extent_; }
 
 private:
     VkSwapchainKHR swapchain_{ VK_NULL_HANDLE };

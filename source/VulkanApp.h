@@ -51,7 +51,7 @@ public:
     ~VulkanApp();
 
     // Run the application. Returns process exit code.
-    int run();
+    int Run();
 
 private:
     int argc_{};

@@ -3,14 +3,14 @@
 #include <volk/volk.h>
 #include <iostream>
 
-VkDevice LogicalDevice::create(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex) const
+VkDevice LogicalDevice::Create(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex) const
 {
-        float queuePriority = 1.0f;
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
+    float queuePriority = 1.0f;
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
 
     VkDeviceCreateInfo deviceCreateInfo{};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -22,14 +22,14 @@ VkDevice LogicalDevice::create(VkPhysicalDevice physicalDevice, uint32_t queueFa
     deviceCreateInfo.enabledExtensionCount = 1;
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions;
 
-        VkDevice device = VK_NULL_HANDLE;
-        VkResult r = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
-        if (r != VK_SUCCESS) {
-            std::cerr << "vkCreateDevice failed: " << r << std::endl;
-            return VK_NULL_HANDLE;
-        }
-        // Load device-level entrypoints for extensions via volk.
-        volkLoadDevice(device);
+    VkDevice device = VK_NULL_HANDLE;
+    VkResult r = vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device);
+    if (r != VK_SUCCESS) {
+        std::cerr << "vkCreateDevice failed: " << r << '\n';
+        return VK_NULL_HANDLE;
+    }
+    // Load device-level entrypoints for extensions via volk.
+    volkLoadDevice(device);
 
-        return device;
+    return device;
 }

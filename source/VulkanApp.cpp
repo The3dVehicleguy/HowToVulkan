@@ -23,7 +23,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
-#define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
 #include "CommandPool.h"
@@ -33,8 +32,20 @@
 #include "PhysicalDevice.h"
 #include "Pipeline.h"
 #include "Renderer.h"
+#include "RenderContext.h"
 #include "Swapchain.h"
 #include "TextureImage.h"
+#include "Buffer.h"
+#include "SyncObjects.h"
+#include "ShaderModule.h"
+// RAII helpers added during refactor
+#include "UniformBufferSet.h"
+#include "ShaderManager.h"
+#include "TextureHandle.h"
+#include "DescriptorRAII.h"
+#include "OwnedPipeline.h"
+#include "Model.h"
+#include "AssetManager.h"
 
 static inline void chk(VkResult result) {
     if (result != VK_SUCCESS) {
@@ -54,12 +65,12 @@ VulkanApp::VulkanApp(int argc, char* argv[])
 
 VulkanApp::~VulkanApp() = default;
 
-int VulkanApp::run()
+int VulkanApp::Run()
 {
     // Initialize volk loader then create an instance via the RAII wrapper.
     volkInitialize();
     InstanceWrapper inst("How to Vulkan");
-    VkInstance instance = inst.get();
+    VkInstance instance = inst.Get();
 
     // Choose a physical device via helper
     uint32_t deviceIndex{ 0 };
@@ -67,7 +78,7 @@ int VulkanApp::run()
         deviceIndex = std::stoi(argv_[1]);
     }
     PhysicalDevice physHelper;
-    VkPhysicalDevice physical = physHelper.choose(instance, deviceIndex);
+    VkPhysicalDevice physical = physHelper.Choose(instance, deviceIndex);
     VkPhysicalDeviceProperties2 deviceProperties{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
     vkGetPhysicalDeviceProperties2(physical, &deviceProperties);
     std::cout << "Selected device: " << deviceProperties.properties.deviceName << "\n";
@@ -87,7 +98,7 @@ int VulkanApp::run()
 
     // Create logical device via helper
     LogicalDevice logicalHelper;
-    VkDevice device = logicalHelper.create(physical, queueFamily);
+    VkDevice device = logicalHelper.Create(physical, queueFamily);
     VkQueue queue{ VK_NULL_HANDLE };
     vkGetDeviceQueue(device, queueFamily, 0, &queue);
 
@@ -106,109 +117,50 @@ int VulkanApp::run()
 
     // Swap chain (use helper)
     Swapchain swapHelper;
-    VkSwapchainKHR swapchain = swapHelper.create(physical, device, surface, queueFamily, allocator);
-    auto& swapchainImages = swapHelper.images();
-    auto& swapchainImageViews = swapHelper.imageViews();
-    const VkFormat imageFormat = swapHelper.getImageFormat();
-    const VkFormat depthFormat = swapHelper.getDepthFormat();
+    VkSwapchainKHR swapchain = swapHelper.Create(physical, device, surface, queueFamily, allocator);
+    auto& swapchainImages = swapHelper.Images();
+    auto& swapchainImageViews = swapHelper.ImageViews();
+    const VkFormat imageFormat = swapHelper.GetImageFormat();
+    const VkFormat depthFormat = swapHelper.GetDepthFormat();
     uint32_t imageCount = static_cast<uint32_t>(swapchainImages.size());
 
-    // Mesh data
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    chk(tinyobj::LoadObj(&attrib, &shapes, &materials, nullptr, nullptr, "assets/suzanne.obj"));
-    const VkDeviceSize indexCount{ shapes[0].mesh.indices.size() };
-    std::vector<Vertex> vertices{};
-    std::vector<uint16_t> indices{};
-
-    for (auto& index : shapes[0].mesh.indices) {
-        Vertex v{
-            .pos = { attrib.vertices[index.vertex_index * 3], -attrib.vertices[index.vertex_index * 3 + 1], attrib.vertices[index.vertex_index * 3 + 2] },
-            .normal = { attrib.normals[index.normal_index * 3], -attrib.normals[index.normal_index * 3 + 1], attrib.normals[index.normal_index * 3 + 2] },
-            .uv = { attrib.texcoords[index.texcoord_index * 2], 1.0f - attrib.texcoords[index.texcoord_index * 2 + 1] }
-        };
-        vertices.push_back(v);
-        indices.push_back(indices.size());
-    }
-    VkDeviceSize vBufSize{ sizeof(Vertex) * vertices.size() };
-    VkDeviceSize iBufSize{ sizeof(uint16_t) * indices.size() };
-    VkBuffer vBuffer{ VK_NULL_HANDLE };
-    VmaAllocation vBufferAllocation{ VK_NULL_HANDLE };
-    VkBufferCreateInfo bufferCI{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = vBufSize + iBufSize, .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT };
-    VmaAllocationCreateInfo bufferAllocCI{ .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, .usage = VMA_MEMORY_USAGE_AUTO };
-    chk(vmaCreateBuffer(allocator, &bufferCI, &bufferAllocCI, &vBuffer, &vBufferAllocation, nullptr));
-    void* bufferPtr{ nullptr };
-    vmaMapMemory(allocator, vBufferAllocation, &bufferPtr);
-    memcpy(bufferPtr, vertices.data(), vBufSize);
-    memcpy(((char*)bufferPtr) + vBufSize, indices.data(), iBufSize);
-    vmaUnmapMemory(allocator, vBufferAllocation);
-
-    // Shader data buffers
-    std::array<ShaderDataBuffer, VulkanApp::maxFramesInFlight> shaderDataBuffers{};
-    for (auto i = 0; i < VulkanApp::maxFramesInFlight; i++) {
-        VkBufferCreateInfo uBufferCI{ .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = sizeof(ShaderData), .usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT };
-        VmaAllocationCreateInfo uBufferAllocCI{ .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, .usage = VMA_MEMORY_USAGE_AUTO };
-        chk(vmaCreateBuffer(allocator, &uBufferCI, &uBufferAllocCI, &shaderDataBuffers[i].buffer, &shaderDataBuffers[i].allocation, nullptr));
-        vmaMapMemory(allocator, shaderDataBuffers[i].allocation, &shaderDataBuffers[i].mapped);
-        VkBufferDeviceAddressInfo uBufferBdaInfo{ .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = shaderDataBuffers[i].buffer };
-        shaderDataBuffers[i].deviceAddress = vkGetBufferDeviceAddress(device, &uBufferBdaInfo);
-    }
-
-    // Sync objects
-    std::array<VkFence, VulkanApp::maxFramesInFlight> fences{};
-    std::array<VkSemaphore, VulkanApp::maxFramesInFlight> presentSemaphores{};
-    std::vector<VkSemaphore> renderSemaphores;
-    VkSemaphoreCreateInfo semaphoreCI{ .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    VkFenceCreateInfo fenceCI{ .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, .flags = VK_FENCE_CREATE_SIGNALED_BIT };
-    for (auto i = 0; std::cmp_less(i, VulkanApp::maxFramesInFlight); i++) {
-        chk(vkCreateFence(device, &fenceCI, nullptr, &fences[i]));
-        chk(vkCreateSemaphore(device, &semaphoreCI, nullptr, &presentSemaphores[i]));
-    }
-    renderSemaphores.resize(swapchainImages.size());
-    for (auto& semaphore : renderSemaphores) {
-        chk(vkCreateSemaphore(device, &semaphoreCI, nullptr, &semaphore));
-    }
-
-    // Command pool (use RAII helper)
+    // Command pool needed for texture uploads and transient work (create early)
     CommandPool cmdPoolHelper(device, queueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+    // Assets: load model and textures via AssetManager
+    VmaAllocationCreateInfo bufferAllocCI{ .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT, .usage = VMA_MEMORY_USAGE_AUTO };
+    AssetManager assetMgr;
+    std::vector<std::string> texFiles = { "assets/suzanne0.ktx", "assets/suzanne1.ktx", "assets/suzanne2.ktx" };
+    chk(assetMgr.AddAsset(device, allocator, cmdPoolHelper.GetPool(), queue, "assets/suzanne.obj", texFiles, bufferAllocCI));
+    const Asset& asset = assetMgr.GetAsset(0);
+    VkBuffer vBuffer = asset.GetModelBuffer();
+    VkDeviceSize vBufSize = asset.GetModelVertexSize();
+    VkDeviceSize iBufSize = asset.GetModelIndexSize();
+    VkDeviceSize indexCount = asset.GetModelIndexCount();
+
+    // Shader data buffers (per-frame) managed by UniformBufferSet RAII helper
+    UniformBufferSet uniformBuffers(allocator, device);
+
+    // Sync objects: use owning RAII wrapper. Caller must destroy before device teardown.
+    // SyncObjects is a non-templated class: pass framesInFlight, device and swapchain image count.
+    SyncObjects sync(static_cast<uint32_t>(VulkanApp::maxFramesInFlight), device, static_cast<uint32_t>(swapchainImages.size()));
+
     std::array<VkCommandBuffer, VulkanApp::maxFramesInFlight> commandBuffers{};
-    auto allocated = cmdPoolHelper.allocate(device, VulkanApp::maxFramesInFlight);
+    auto allocated = cmdPoolHelper.Allocate(device, VulkanApp::maxFramesInFlight);
     for (size_t i = 0; i < allocated.size() && i < commandBuffers.size(); ++i) commandBuffers[i] = allocated[i];
 
-    // Texture images (load via helper)
-    std::array<Texture, 3> textures{};
-    std::vector<VkDescriptorImageInfo> textureDescriptors{};
-    TextureImage texLoader;
-    for (size_t i = 0; i < textures.size(); ++i) {
-        std::string filename = "assets/suzanne" + std::to_string(i) + ".ktx";
-    textures[i] = texLoader.load(device, allocator, cmdPoolHelper.getPool(), queue, filename);
-        if (textures[i].image == VK_NULL_HANDLE) {
-            std::cerr << "Failed to load texture: " << filename << '\n';
-            chk(VK_ERROR_INITIALIZATION_FAILED);
-        }
-        textureDescriptors.push_back({ .sampler = textures[i].sampler, .imageView = textures[i].view, .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL });
-    }
+    // Textures are owned by the Asset instances (loaded inside Asset)
 
     // Descriptor (indexing) - use helper to create layout, pool and allocate/update set
-    Descriptor descHelper;
-    VkDescriptorSetLayout descriptorSetLayoutTex = descHelper.createLayout(device, static_cast<uint32_t>(textures.size()));
-    VkDescriptorPool descriptorPool = descHelper.createPool(device, static_cast<uint32_t>(textures.size()));
-    if (descriptorPool == VK_NULL_HANDLE) {
-        std::cerr << "Failed to create descriptor pool" << '\n';
-        chk(VK_ERROR_INITIALIZATION_FAILED);
-    }
-    VkDescriptorSet descriptorSetTex = descHelper.allocateAndWrite(device, descriptorPool, descriptorSetLayoutTex, textureDescriptors);
-    if (descriptorSetTex == VK_NULL_HANDLE) {
-        std::cerr << "Failed to allocate descriptor set" << '\n';
-        chk(VK_ERROR_INITIALIZATION_FAILED);
-    }
+    // Descriptor set(s) are created per-asset by AssetManager. Use the first asset's set here.
+    VkDescriptorSetLayout descriptorSetLayoutTex = asset.GetDescriptorLayout();
+    VkDescriptorSet descriptorSetTex = asset.GetDescriptorSet();
 
     // Initialize Slang shader compiler
     Slang::ComPtr<slang::IGlobalSession> slangGlobalSession;
     slang::createGlobalSession(slangGlobalSession.writeRef());
     auto slangTargets{ std::to_array<slang::TargetDesc>({ {.format{SLANG_SPIRV}, .profile{slangGlobalSession->findProfile("spirv_1_4")} } }) };
-    auto slangOptions{ std::to_array<slang::CompilerOptionEntry>({ { slang::CompilerOptionName::EmitSpirvDirectly, {slang::CompilerOptionValueKind::Int, 1} } }) };
+    auto slangOptions{ std::to_array<slang::CompilerOptionEntry>({ {.name = slang::CompilerOptionName::EmitSpirvDirectly, .value = {slang::CompilerOptionValueKind::Int, 1} } }) };
     slang::SessionDesc slangSessionDesc{ .targets{slangTargets.data()}, .targetCount{SlangInt(slangTargets.size())}, .defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_COLUMN_MAJOR, .compilerOptionEntries{slangOptions.data()}, .compilerOptionEntryCount{uint32_t(slangOptions.size())} };
 
     // Load shader
@@ -217,9 +169,8 @@ int VulkanApp::run()
     Slang::ComPtr<slang::IModule> slangModule{ slangSession->loadModuleFromSource("triangle", "assets/shader.slang", nullptr, nullptr) };
     Slang::ComPtr<ISlangBlob> spirv;
     slangModule->getTargetCode(0, spirv.writeRef());
-    VkShaderModuleCreateInfo shaderModuleCI{ .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, .codeSize = spirv->getBufferSize(), .pCode = (uint32_t*)spirv->getBufferPointer() };
-    VkShaderModule shaderModule{};
-    vkCreateShaderModule(device, &shaderModuleCI, nullptr, &shaderModule);
+    // Create ShaderManager owning shader modules for the pipeline stages.
+    ShaderManager shaderManager(device, spirv->getBufferPointer(), spirv->getBufferSize());
 
     // Pipeline layout (push constant for device address)
     VkPushConstantRange pushConstantRange{ .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .size = sizeof(VkDeviceAddress) };
@@ -227,21 +178,26 @@ int VulkanApp::run()
     VkPipelineLayout pipelineLayout{ VK_NULL_HANDLE };
     chk(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
 
-    // Vertex input description
-    VkVertexInputBindingDescription vertexBinding{ .binding = 0, .stride = sizeof(Vertex), .inputRate = VK_VERTEX_INPUT_RATE_VERTEX };
-    std::vector<VkVertexInputAttributeDescription> vertexAttributes{
-        { .location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex, pos) },
-        { .location = 1, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex, normal) },
-        { .location = 2, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(Vertex, uv) },
-    };
+    // Vertex input description (use Asset/Model helpers)
+    VkVertexInputBindingDescription vertexBinding = asset.GetVertexBindingDescription();
+    std::vector<VkVertexInputAttributeDescription> vertexAttributes = asset.GetVertexAttributeDescriptions();
 
-    // Use Pipeline wrapper to create the graphics pipeline
+    // Use Pipeline wrapper to create the graphics pipeline via the new descriptor struct
     Pipeline pipelineHelper;
-    VkPipeline pipeline = pipelineHelper.createGraphics(device, pipelineLayout, shaderModule, vertexBinding, vertexAttributes, imageFormat, depthFormat);
+    Pipeline::GraphicsCreateInfo pci{};
+    pci.device = device;
+    pci.layout = pipelineLayout;
+    pci.shaderManager = &shaderManager;
+    pci.vertexBinding = vertexBinding;
+    pci.vertexAttributes = vertexAttributes;
+    pci.colorFormat = imageFormat;
+    pci.depthFormat = depthFormat;
+    VkPipeline pipeline = pipelineHelper.createGraphics(pci);
     if (pipeline == VK_NULL_HANDLE) {
         std::cerr << "Failed to create graphics pipeline" << '\n';
         chk(VK_ERROR_INITIALIZATION_FAILED);
     }
+    OwnedPipeline ownedPipeline(device, pipeline, pipelineLayout);
 
     // Move render loop into Renderer class for cleaner separation of
     // responsibilities. The renderer operates on the Vulkan objects
@@ -263,45 +219,41 @@ int VulkanApp::run()
     ctx.vBuffer = vBuffer;
     ctx.vBufSize = vBufSize;
     ctx.indexCount = indexCount;
-    ctx.shaderDataBuffers = &shaderDataBuffers;
+    // Build renderable list from assets (owned by VulkanApp stack here)
+    std::vector<RenderContext::Renderable> renderables;
+    renderables.push_back({ asset.GetDescriptorSet(), asset.GetModelBuffer(), asset.GetModelVertexSize(), asset.GetModelIndexSize(), asset.GetModelIndexCount() });
+    ctx.renderables = &renderables;
+    ctx.shaderDataBuffers = &uniformBuffers.buffers();
     ctx.commandBuffers = &commandBuffers;
-    ctx.fences = &fences;
-    ctx.presentSemaphores = &presentSemaphores;
-    ctx.renderSemaphores = &renderSemaphores;
+    ctx.fences = &sync.fences();
+    ctx.presentSemaphores = &sync.presentSemaphores();
+    ctx.renderSemaphores = &sync.renderSemaphores();
     ctx.surfaceCaps = &surfaceCaps;
 
-    int rendererExit = renderer.run(ctx);
+    int rendererExit = renderer.Run(ctx);
     if (rendererExit != 0) {
         return rendererExit;
     }
 
-    // Tear down
+    // Tear down (explicit destruction ordering)
     chk(vkDeviceWaitIdle(device));
-    for (auto i = 0; std::cmp_less(i, VulkanApp::maxFramesInFlight); i++) {
-        vkDestroyFence(device, fences[i], nullptr);
-        vkDestroySemaphore(device, presentSemaphores[i], nullptr);
-        vkDestroySemaphore(device, renderSemaphores[i], nullptr);
-        vmaUnmapMemory(allocator, shaderDataBuffers[i].allocation);
-        vmaDestroyBuffer(allocator, shaderDataBuffers[i].buffer, shaderDataBuffers[i].allocation);
-    }
-    // Swapchain helper owns swapchain images, image views and depth image.
-    swapHelper.destroy(device, allocator);
-    vmaDestroyBuffer(allocator, vBuffer, vBufferAllocation);
-    for (auto& texture : textures)
-    {
-        vkDestroyImageView(device, texture.view, nullptr);
-        vkDestroySampler(device, texture.sampler, nullptr);
-        vmaDestroyImage(allocator, texture.image, texture.allocation);
-    }
-    vkDestroyDescriptorSetLayout(device, descriptorSetLayoutTex, nullptr);
-    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-    vkDestroyPipeline(device, pipeline, nullptr);
-    // swapHelper.destroy already cleaned up the swapchain
+    // Destroy per-frame uniform buffers
+    uniformBuffers.destroy(device);
+    // Destroy non-device-local resources in correct order:
+    // 1) Sync objects
+    sync.destroy(device);
+    // 2) Destroy assets (includes textures and per-asset descriptors and model buffers)
+    assetMgr.DestroyAll(device, allocator);
+    // 4) Destroy swapchain resources
+    swapHelper.Destroy(device, allocator);
+    // 5) Destroy pipeline and its layout
+    ownedPipeline.destroy(device);
+    // 6) Destroy surface
     vkDestroySurfaceKHR(instance, surface, nullptr);
-    // Explicitly destroy command pool before device destruction
-    cmdPoolHelper.destroy();
-    vkDestroyShaderModule(device, shaderModule, nullptr);
+    // 7) Destroy command pool
+    cmdPoolHelper.Destroy();
+    // Vertex/index buffers are owned by assets; they've been destroyed by assetMgr.destroyAll
+    // 8) Destroy allocator and device
     vmaDestroyAllocator(allocator);
     vkDestroyDevice(device, nullptr);
     // Instance is destroyed automatically by InstanceWrapper destructor

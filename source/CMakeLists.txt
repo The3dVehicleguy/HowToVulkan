@@ -72,8 +72,16 @@ add_executable(${NAME}
     VulkanApp.h
     PhysicalDevice.h
     PhysicalDevice.cpp
+    Buffer.cpp
+    ShaderModule.cpp
+    ShaderManager.cpp
+    Model.cpp
+    Model.h
     Swapchain.h
     Swapchain.cpp
+    Asset.h
+    Asset.cpp
+    AssetManager.h
     TextureImage.cpp
     TextureImage.h
     Pipeline.cpp

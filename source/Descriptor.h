@@ -8,13 +8,14 @@
 struct VkDescriptorImageInfo;
 
 // Minimal descriptor helper for creating a texture descriptor set layout.
-class Descriptor {
+class Descriptor 
+{
 public:
     Descriptor() = default;
     ~Descriptor();
-    VkDescriptorSetLayout createLayout(VkDevice device, uint32_t bindingCount) const;
-    VkDescriptorPool createPool(VkDevice device, uint32_t descriptorCount) const;
-    VkDescriptorSet allocateAndWrite(
+    VkDescriptorSetLayout CreateLayout(VkDevice device, uint32_t bindingCount) const;
+    VkDescriptorPool CreatePool(VkDevice device, uint32_t descriptorCount) const;
+    VkDescriptorSet AllocateAndWrite(
         VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout,
         const std::vector<VkDescriptorImageInfo>& imageInfos) const;
 
@@ -29,15 +30,15 @@ public:
     // Initialize the descriptor helper: create a layout for bindingCount
     // combined image samplers and a pool sized for descriptorCount.
     // Returns true on success.
-    bool init(VkDevice device, uint32_t bindingCount = 1, uint32_t descriptorCount = 1);
+    bool Init(VkDevice device, uint32_t bindingCount = 1, uint32_t descriptorCount = 1);
 
     // Allocate a descriptor set from the internally owned pool/layout and
     // update it with imageInfos. Returns VK_NULL_HANDLE on failure.
-    VkDescriptorSet allocateAndWrite(const std::vector<VkDescriptorImageInfo>& imageInfos) const;
+    VkDescriptorSet AllocateAndWrite(const std::vector<VkDescriptorImageInfo>& imageInfos) const;
 
     // Accessors
-    VkDescriptorPool getPool() const { return pool_; }
-    VkDescriptorSetLayout getLayout() const { return layout_; }
+    VkDescriptorPool GetPool() const { return pool_; }
+    VkDescriptorSetLayout GetLayout() const { return layout_; }
 
 private:
     VkDevice device_{ VK_NULL_HANDLE };
